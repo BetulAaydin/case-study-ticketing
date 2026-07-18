@@ -1,0 +1,30 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: ticketing-auth
+  datasource:
+    url: jdbc:h2:mem:authdb;MODE=PostgreSQL
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+  h2:
+    console:
+      enabled: true
+
+security:
+  jwt:
+    secret: ${JWT_SECRET:dGlja2V0aW5nLWNhc2Utc3R1ZHktc2VjcmV0LWtleS0yMDI2}
+    access-ttl-minutes: 30
+    refresh-ttl-days: 7
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
