@@ -6,6 +6,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class JwtProperties {
 
     private String secret;
+    private String algorithm = "HmacSHA256";
     private long accessTtlMinutes = 30;
     private long refreshTtlDays = 7;
 
@@ -15,6 +16,14 @@ public class JwtProperties {
 
     public void setSecret(String secret) {
         this.secret = secret;
+    }
+
+    public String getAlgorithm() {
+        return algorithm;
+    }
+
+    public void setAlgorithm(String algorithm) {
+        this.algorithm = algorithm;
     }
 
     public long getAccessTtlMinutes() {

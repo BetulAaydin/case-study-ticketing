@@ -26,17 +26,20 @@ public class AuthService {
     private final JwtService jwtService;
     private final JwtProperties jwtProperties;
     private final PasswordEncoder passwordEncoder;
+    private final UserSessionService userSessionService;
 
     public AuthService(UserRepository userRepository,
                        RefreshTokenRepository refreshTokenRepository,
                        JwtService jwtService,
                        JwtProperties jwtProperties,
-                       PasswordEncoder passwordEncoder) {
+                       PasswordEncoder passwordEncoder,
+                       UserSessionService userSessionService) {
         this.userRepository = userRepository;
         this.refreshTokenRepository = refreshTokenRepository;
         this.jwtService = jwtService;
         this.jwtProperties = jwtProperties;
         this.passwordEncoder = passwordEncoder;
+        this.userSessionService = userSessionService;
     }
 
     @Transactional
@@ -66,7 +69,7 @@ public class AuthService {
         user.setLastLoginAt(LocalDateTime.now());
         userRepository.save(user);
 
-        refreshTokenRepository.deleteByUserId(user.getId());
+        invalidateExistingSessions(user.getId());
 
         return buildAuthResponse(user);
     }
@@ -77,6 +80,7 @@ public class AuthService {
                 .orElseThrow(() -> new BusinessException("AUTH_INVALID_REFRESH", "Invalid refresh token"));
 
         if (stored.getExpiresAt().isBefore(LocalDateTime.now())) {
+            userSessionService.deleteSession(stored.getSessionId());
             refreshTokenRepository.delete(stored);
             throw new BusinessException("AUTH_REFRESH_EXPIRED", "Refresh token expired");
         }
@@ -84,24 +88,50 @@ public class AuthService {
         User user = userRepository.findById(stored.getUserId())
                 .orElseThrow(() -> new BusinessException("AUTH_USER_NOT_FOUND", "User not found"));
 
+        String sessionId = stored.getSessionId();
+        List<String> roles = user.getRoles().stream().map(Role::name).toList();
+        userSessionService.saveSession(sessionId, user.getId(), user.getEmail(), roles);
+
+        String accessToken = jwtService.generateToken(sessionId, user.getEmail());
+
         refreshTokenRepository.delete(stored);
 
-        return buildAuthResponse(user);
+        RefreshToken newRefreshToken = new RefreshToken();
+        newRefreshToken.setUserId(user.getId());
+        newRefreshToken.setToken(UUID.randomUUID().toString());
+        newRefreshToken.setSessionId(sessionId);
+        newRefreshToken.setExpiresAt(LocalDateTime.now().plusDays(jwtProperties.getRefreshTtlDays()));
+        refreshTokenRepository.save(newRefreshToken);
+
+        return new AuthResponse(accessToken, newRefreshToken.getToken(), jwtProperties.getAccessTtlMinutes());
     }
 
     @Transactional
     public void logout(AuthLogoutRequest request) {
         refreshTokenRepository.findByToken(request.refreshToken())
-                .ifPresent(refreshTokenRepository::delete);
+                .ifPresent(rt -> {
+                    userSessionService.deleteSession(rt.getSessionId());
+                    refreshTokenRepository.delete(rt);
+                });
+    }
+
+    private void invalidateExistingSessions(Long userId) {
+        refreshTokenRepository.findAllByUserId(userId).forEach(rt -> {
+            userSessionService.deleteSession(rt.getSessionId());
+        });
+        refreshTokenRepository.deleteByUserId(userId);
     }
 
     private AuthResponse buildAuthResponse(User user) {
         List<String> roles = user.getRoles().stream().map(Role::name).toList();
-        String accessToken = jwtService.generateToken(user.getId(), user.getEmail(), roles);
+
+        String sessionId = userSessionService.createSession(user.getId(), user.getEmail(), roles);
+        String accessToken = jwtService.generateToken(sessionId, user.getEmail());
 
         RefreshToken refreshToken = new RefreshToken();
         refreshToken.setUserId(user.getId());
         refreshToken.setToken(UUID.randomUUID().toString());
+        refreshToken.setSessionId(sessionId);
         refreshToken.setExpiresAt(LocalDateTime.now().plusDays(jwtProperties.getRefreshTtlDays()));
         refreshTokenRepository.save(refreshToken);
 

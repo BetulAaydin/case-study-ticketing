@@ -6,42 +6,49 @@ spring:
     name: ticketing-apigateway
   data:
     redis:
-      host: localhost
-      port: 6379
+      cluster:
+        nodes:
+          - ${REDIS_NODE_1:127.0.0.1:6379}
+          - ${REDIS_NODE_2:127.0.0.1:6379}
+          - ${REDIS_NODE_3:127.0.0.1:6379}
+      password: ${REDIS_PASSWORD:}
   cloud:
     gateway:
-      routes:
-        - id: auth-service
-          uri: http://localhost:8082
-          predicates:
-            - Path=/api/auth/**
-          filters:
-            - name: RequestRateLimiter
-              args:
-                redis-rate-limiter.replenishRate: 5
-                redis-rate-limiter.burstCapacity: 5
-                key-resolver: "#{@ipKeyResolver}"
+      server:
+        webmvc:
+          routes:
+            - id: auth-service
+              uri: http://localhost:8082
+              predicates:
+                - Path=/api/ticket/auth/**
+              filters:
+                - RewritePath=/api/ticket(?<segment>/?.*), ${segment}
 
-        - id: ticketing-public
-          uri: http://localhost:8081
-          predicates:
-            - Path=/api/events/public/**
-            - Method=GET
+            - id: ticketing-public
+              uri: http://localhost:8081
+              predicates:
+                - Path=/api/ticket/events/public/**
+                - Method=GET
+              filters:
+                - RewritePath=/api/ticket(?<segment>/?.*), ${segment}
 
-        - id: ticketing-service
-          uri: http://localhost:8081
-          predicates:
-            - Path=/api/events/**,/api/reservations/**
-          filters:
-            - name: RequestRateLimiter
-              args:
-                redis-rate-limiter.replenishRate: 100
-                redis-rate-limiter.burstCapacity: 100
-                key-resolver: "#{@userKeyResolver}"
+            - id: ticketing-service
+              uri: http://localhost:8081
+              predicates:
+                - Path=/api/ticket/events/**,/api/ticket/reservations/**
+              filters:
+                - RewritePath=/api/ticket(?<segment>/?.*), ${segment}
 
 security:
   jwt:
     secret: ${JWT_SECRET:dGlja2V0aW5nLWNhc2Utc3R1ZHktc2VjcmV0LWtleS0yMDI2}
+    algorithm: HmacSHA256
+  rate-limit:
+    enabled: true
+    window-seconds: 60
+    login-max-requests: 5
+    authenticated-max-requests: 100
+    anonymous-max-requests: 50
 
 management:
   endpoints:

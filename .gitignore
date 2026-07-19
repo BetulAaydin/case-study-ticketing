@@ -1,5 +1,7 @@
 target/
-.cursor/
+.cursor/**
+!.cursor/skills/
+!.cursor/skills/**
 .DS_Store
 *.iml
 .idea/

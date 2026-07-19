@@ -8,27 +8,27 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import java.util.Base64;
 import java.util.Date;
-import java.util.List;
 
 public class JwtService {
+
+    private static final String SESSION_ID_CLAIM = "sid";
 
     private final SecretKey signingKey;
     private final long accessTtlMs;
 
     public JwtService(JwtProperties properties) {
         byte[] decoded = Base64.getDecoder().decode(properties.getSecret());
-        this.signingKey = new SecretKeySpec(decoded, "HmacSHA256");
+        this.signingKey = new SecretKeySpec(decoded, properties.getAlgorithm());
         this.accessTtlMs = properties.getAccessTtlMinutes() * 60 * 1000;
     }
 
-    public String generateToken(Long uid, String email, List<String> roles) {
+    public String generateToken(String sessionId, String email) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + accessTtlMs);
 
         return Jwts.builder()
                 .subject(email)
-                .claim("uid", uid)
-                .claim("roles", roles)
+                .claim(SESSION_ID_CLAIM, sessionId)
                 .issuedAt(now)
                 .expiration(expiry)
                 .signWith(signingKey, Jwts.SIG.HS256)
@@ -50,5 +50,9 @@ public class JwtService {
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
+    }
+
+    public String extractSessionId(String token) {
+        return extractClaims(token).get(SESSION_ID_CLAIM, String.class);
     }
 }

@@ -18,6 +18,9 @@ public class RefreshToken {
     private String token;
 
     @Column(nullable = false)
+    private String sessionId;
+
+    @Column(nullable = false)
     private LocalDateTime expiresAt;
 
     public Long getId() {
@@ -42,6 +45,14 @@ public class RefreshToken {
 
     public void setToken(String token) {
         this.token = token;
+    }
+
+    public String getSessionId() {
+        return sessionId;
+    }
+
+    public void setSessionId(String sessionId) {
+        this.sessionId = sessionId;
     }
 
     public LocalDateTime getExpiresAt() {
