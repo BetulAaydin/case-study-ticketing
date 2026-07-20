@@ -9,6 +9,7 @@ import com.turkcell.mayacore.auth.repository.UserRepository;
 import com.turkcell.mayacore.commonlibrary.exception.BusinessException;
 import com.turkcell.mayacore.commonlibrary.security.JwtProperties;
 import com.turkcell.mayacore.commonlibrary.security.JwtService;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,7 +46,10 @@ public class AuthService {
     @Transactional
     public AuthResponse register(AuthRegisterRequest request) {
         if (userRepository.existsByEmail(request.email())) {
-            throw new BusinessException("AUTH_EMAIL_EXISTS", "Email already registered: " + request.email());
+            throw new BusinessException(
+                    "AUTH_EMAIL_EXISTS",
+                    "Email already registered: " + request.email(),
+                    HttpStatus.CONFLICT);
         }
 
         User user = new User();
@@ -60,10 +64,16 @@ public class AuthService {
     @Transactional
     public AuthResponse login(AuthLoginRequest request) {
         User user = userRepository.findByEmail(request.email())
-                .orElseThrow(() -> new BusinessException("AUTH_INVALID_CREDENTIALS", "Invalid email or password"));
+                .orElseThrow(() -> new BusinessException(
+                        "AUTH_INVALID_CREDENTIALS",
+                        "Invalid email or password",
+                        HttpStatus.UNAUTHORIZED));
 
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
-            throw new BusinessException("AUTH_INVALID_CREDENTIALS", "Invalid email or password");
+            throw new BusinessException(
+                    "AUTH_INVALID_CREDENTIALS",
+                    "Invalid email or password",
+                    HttpStatus.UNAUTHORIZED);
         }
 
         user.setLastLoginAt(LocalDateTime.now());
@@ -77,16 +87,25 @@ public class AuthService {
     @Transactional
     public AuthResponse refresh(AuthRefreshRequest request) {
         RefreshToken stored = refreshTokenRepository.findByToken(request.refreshToken())
-                .orElseThrow(() -> new BusinessException("AUTH_INVALID_REFRESH", "Invalid refresh token"));
+                .orElseThrow(() -> new BusinessException(
+                        "AUTH_INVALID_REFRESH",
+                        "Invalid refresh token",
+                        HttpStatus.UNAUTHORIZED));
 
         if (stored.getExpiresAt().isBefore(LocalDateTime.now())) {
             userSessionService.deleteSession(stored.getSessionId());
             refreshTokenRepository.delete(stored);
-            throw new BusinessException("AUTH_REFRESH_EXPIRED", "Refresh token expired");
+            throw new BusinessException(
+                    "AUTH_REFRESH_EXPIRED",
+                    "Refresh token expired",
+                    HttpStatus.UNAUTHORIZED);
         }
 
         User user = userRepository.findById(stored.getUserId())
-                .orElseThrow(() -> new BusinessException("AUTH_USER_NOT_FOUND", "User not found"));
+                .orElseThrow(() -> new BusinessException(
+                        "AUTH_USER_NOT_FOUND",
+                        "User not found",
+                        HttpStatus.NOT_FOUND));
 
         String sessionId = stored.getSessionId();
         List<String> roles = user.getRoles().stream().map(Role::name).toList();

@@ -196,7 +196,7 @@ roles:  "ORGANIZER"
 
 - Servislerdeki `application.yml` içindeki ortam bağımlı ayarlar (JWT secret, Redis, route URI’leri, rate limit) **Spring Cloud Config Server**’a taşınacak.
 - Amaç: deploy başına config değişikliği, merkezi secret yönetimi, ortam (dev/test/prod) ayrımı.
-- MayaCore Config Server / `cloud_config` modeli ile hizalanması hedeflenir.
+- Config Server / merkezi config modeli ile hizalanması hedeflenir.
 
 
 
@@ -303,10 +303,11 @@ curl -s -X POST http://localhost:8080/api/auth/login \
 ## OpenAPI
 
 ```
- http://localhost:8080/swagger-ui.html->downstream api'leri listeleyecek sekilde dökümantasyon olustur
 Auth Swagger:       http://localhost:8082/swagger-ui.html
 Ticketing Swagger:  http://localhost:8081/swagger-ui.html
 ```
+
+(Alternatif: `/swagger-ui/index.html`)
 
 İstemci trafiği için giriş noktası: **[http://localhost:8080](http://localhost:8080)** (Gateway).
 

@@ -12,8 +12,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import java.util.stream.Collectors;
 
 /**
- * RULE-2 uyumlu: BusinessException ve SystemException icin handler YAZMAZ.
- * Sadece framework exception'larini yakalar.
+ * Framework exception'larini yakalar.
+ * BusinessException / SystemException icin handler yazmaz; onlar TicketExceptionHandler'dadir.
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {

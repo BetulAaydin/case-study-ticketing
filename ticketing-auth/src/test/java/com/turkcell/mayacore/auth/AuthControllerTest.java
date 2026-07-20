@@ -88,8 +88,9 @@ class AuthControllerTest {
         mockMvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().is5xxServerError())
-                .andExpect(jsonPath("$.success").value(false));
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("AUTH_EMAIL_EXISTS"));
     }
 
     @Test
@@ -112,8 +113,10 @@ class AuthControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(
                                 new AuthLoginRequest("customer@ticketing.com", "WrongPassword!"))))
-                .andExpect(status().is5xxServerError())
-                .andExpect(jsonPath("$.success").value(false));
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("AUTH_INVALID_CREDENTIALS"))
+                .andExpect(jsonPath("$.errorMessage").value("Invalid email or password"));
     }
 
     @Test
@@ -152,8 +155,9 @@ class AuthControllerTest {
         mockMvc.perform(post("/auth/refresh")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new AuthRefreshRequest("expired-rt"))))
-                .andExpect(status().is5xxServerError())
-                .andExpect(jsonPath("$.success").value(false));
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("AUTH_REFRESH_EXPIRED"));
     }
 
     @Test
@@ -180,6 +184,7 @@ class AuthControllerTest {
         mockMvc.perform(post("/auth/refresh")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new AuthRefreshRequest(refreshToken))))
-                .andExpect(status().is5xxServerError());
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.errorCode").value("AUTH_INVALID_REFRESH"));
     }
 }

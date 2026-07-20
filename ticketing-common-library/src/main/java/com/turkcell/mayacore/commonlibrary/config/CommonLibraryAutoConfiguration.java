@@ -1,6 +1,7 @@
 package com.turkcell.mayacore.commonlibrary.config;
 
 import com.turkcell.mayacore.commonlibrary.exception.GlobalExceptionHandler;
+import com.turkcell.mayacore.commonlibrary.exception.TicketExceptionHandler;
 import com.turkcell.mayacore.commonlibrary.security.JwtProperties;
 import com.turkcell.mayacore.commonlibrary.security.JwtService;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -19,6 +20,13 @@ public class CommonLibraryAutoConfiguration {
     @ConditionalOnProperty(prefix = "security.jwt", name = "secret")
     public JwtService jwtService(JwtProperties jwtProperties) {
         return new JwtService(jwtProperties);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
+    public TicketExceptionHandler ticketExceptionHandler() {
+        return new TicketExceptionHandler();
     }
 
     @Bean

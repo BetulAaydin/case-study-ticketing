@@ -29,7 +29,7 @@ Servlet-based Spring Cloud Gateway (WebMVC) handling JWT validation, coarse-grai
 
 ## Security (Spring Security + OAuth2 Resource Server)
 
-Follows MayaCore API Gateway pattern with `SecurityFilterChain`:
+Follows API Gateway pattern with `SecurityFilterChain`:
 
 ```
 Request → Spring Security Filter Chain
