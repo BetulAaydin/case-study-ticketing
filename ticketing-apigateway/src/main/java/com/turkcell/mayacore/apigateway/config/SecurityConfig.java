@@ -45,15 +45,16 @@ public class SecurityConfig {
         http.csrf(csrf -> csrf.disable());
         http.sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
 
+        // More specific matchers must come before /events/** or CUSTOMER reservation create gets 403.
         http.authorizeHttpRequests(auth -> auth
                 .requestMatchers(PERMITTED_PATHS.toArray(new String[0])).permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/ticket/events/public/**").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/ticket/events/**").hasAnyAuthority("ORGANIZER", "ADMIN")
-                .requestMatchers(HttpMethod.PUT, "/api/ticket/events/**").hasAnyAuthority("ORGANIZER", "ADMIN")
-                .requestMatchers(HttpMethod.GET, "/api/ticket/events").authenticated()
                 .requestMatchers(HttpMethod.POST, "/api/ticket/events/*/reservations").hasAuthority("CUSTOMER")
                 .requestMatchers(HttpMethod.POST, "/api/ticket/reservations/*/confirm").hasAuthority("CUSTOMER")
                 .requestMatchers(HttpMethod.POST, "/api/ticket/reservations/*/cancel").hasAuthority("CUSTOMER")
+                .requestMatchers(HttpMethod.POST, "/api/ticket/events/**").hasAnyAuthority("ORGANIZER", "ADMIN")
+                .requestMatchers(HttpMethod.PUT, "/api/ticket/events/**").hasAnyAuthority("ORGANIZER", "ADMIN")
+                .requestMatchers(HttpMethod.GET, "/api/ticket/events").authenticated()
                 .anyRequest().authenticated()
         );
 
