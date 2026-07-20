@@ -1,5 +1,6 @@
 ---
-name: ticketing-base-infra
+
+## name: ticketing-base-infra
 description: |-
   Skill 1 — Base infrastructure: ticketing-common-library, ticketing-auth, ticketing-apigateway.
   Primary agent: Codex (Security, JWT, rate limit). Fable security review; Grok mimari ikinci gorus.
@@ -13,7 +14,8 @@ description: |-
   - Test yazilmasi istendiginde (ticketing-tests kullan)
   - README/dokumantasyon istendiginde (ticketing-readme kullan)
   - Sadece agent/gorev dagitimi soruluyorsa (ticketing-orchestrator kullan)
----
+
+
 
 # Base Infrastructure Implementation (Skill 1)
 
@@ -22,17 +24,23 @@ CommonLibrary + Auth + API Gateway implementasyonunu 3 fazda gerceklestirir. Her
 > **Referans:** Detayli mimari kararlar icin [ticket-plan.md](../../../ticket-plan.md) dosyasini oku.
 > **Orchestration:** [ticketing-orchestrator](../ticketing-orchestrator/SKILL.md)
 
+
+
 ## Agent Assignment
 
-| Rol | Agent | Model | Bu skill'deki is |
-|---|---|---|---|
-| Primary implementer | **Codex** | `gpt-5.2-codex` | Spring Security config, JWT service/decoder/converter, gateway filters, Redis session, rate limit |
-| Security reviewer | **Fable** | `claude-fable-5-thinking-high` | JWT saldiri senaryolari, Redis session/revocation elestirisi, AuthZ aciklari, header strip spoofing |
-| Second opinion | **Grok** | `cursor-grok-4.5-high-fast` | Thin JWT vs alternatifler, path/prefix trade-off; README degil (skill 4) |
+
+| Rol                 | Agent     | Model                          | Bu skill'deki is                                                                                    |
+| ------------------- | --------- | ------------------------------ | --------------------------------------------------------------------------------------------------- |
+| Primary implementer | **Codex** | `gpt-5.2-codex`                | Spring Security config, JWT service/decoder/converter, gateway filters, Redis session, rate limit   |
+| Security reviewer   | **Fable** | `claude-fable-5-thinking-high` | JWT saldiri senaryolari, Redis session/revocation elestirisi, AuthZ aciklari, header strip spoofing |
+| Second opinion      | **Grok**  | `cursor-grok-4.5-high-fast`    | Thin JWT vs alternatifler, path/prefix trade-off; README degil (skill 4)                            |
+
 
 **Akis:** Codex implement → Fable review → kritik bulgu varsa Codex fix. Buyuk mimari sapmada once Grok.
 
 ---
+
+
 
 ## Faz 1: ticketing-common-library
 
@@ -52,22 +60,28 @@ Shared JAR kutuphanesi. Diger uc proje bunu dependency olarak kullanir.
 - Dependencies: `spring-boot-starter-web`, `spring-boot-starter-validation`, JJWT (api + impl + jackson) 0.12.6
 - Spring Boot Maven Plugin **dahil edilmez** (plain JAR, executable degil)
 
+
+
 ### 1.2 Siniflar
 
 Package: `com.turkcell.mayacore.commonlibrary`
 
-| Sinif | Package | Detay |
-|---|---|---|
-| `ApiResponse<T>` | `dto` | `success`, `data`, `errorCode`, `errorMessage`, `timestamp` alanlari. `static success(T data)` ve `static error(String code, String msg)` factory metotlari. |
-| `BusinessException` | `exception` | `errorCode` + `message` alanlari. HTTP 4xx hatalari icin. `RuntimeException` extend eder. |
-| `SystemException` | `exception` | `errorCode` + `message` alanlari. HTTP 5xx hatalari icin. `RuntimeException` extend eder. |
-| `GlobalExceptionHandler` | `exception` | `@ControllerAdvice`. `MethodArgumentNotValidException`, `ConstraintViolationException`, genel `Exception` handler. **BusinessException ve SystemException icin handler YAZMAZ** (RULE-2). Tum response'lar `ApiResponse` formatinda. |
-| `JwtService` | `security` | `generateToken(String sessionId, String email)`: HS256 access token uretir (JWT sadece `sid` + `sub` icerir, roller Redis'te). `validateToken(String token)`: boolean. `extractClaims(String token)`: Claims. `extractSessionId(String token)`: String. JJWT kullanir. |
-| `RedisKeys` | `util` | Final class. Tum key'ler `TICKET:` app prefix'i ile baslar. `USER_SESSION_PREFIX`, `RATE_LIMIT_PREFIX`, `IDEMPOTENCY_PREFIX` (`TICKET:idempotency:`). `userSessionKey`, `rateLimitKey`, `idempotencyKey(key, endpoint)` — sonuncusu skill 2 (ticketing-service) icin. |
-| `JwtProperties` | `security` | `@ConfigurationProperties(prefix="security.jwt")`. Alanlar: `secret` (String), `algorithm` (String, default "HmacSHA256"), `accessTtlMinutes` (long, default 30), `refreshTtlDays` (long, default 7). |
-| `HashUtil` | `util` | `static String sha256(String input)`: SHA-256 hex hash. `MessageDigest` kullanir. |
-| `GatewayHeaders` | `util` | Final class, private constructor. Constant'lar: `USER_ID = "X-User-Id"`, `SESSION_ID = "X-Session-Id"`, `FORWARDED_FOR = "X-Forwarded-For"`, `IDEMPOTENCY_KEY = "Idempotency-Key"`. Downstream'e **yalnizca** userId + sessionId gider; email/roller gitmez. |
-| `DateUtil` | `util` | `static String toIso8601(LocalDateTime dt)`, `static LocalDateTime fromIso8601(String s)`, `static LocalDateTime nowUtc()`. `DateTimeFormatter.ISO_DATE_TIME` kullanir. |
+
+| Sinif                    | Package     | Detay                                                                                                                                                                                                                                                                  |
+| ------------------------ | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ApiResponse<T>`         | `dto`       | `success`, `data`, `errorCode`, `errorMessage`, `timestamp` alanlari. `static success(T data)` ve `static error(String code, String msg)` factory metotlari.                                                                                                           |
+| `BusinessException`      | `exception` | `errorCode` + `message` alanlari. HTTP 4xx hatalari icin. `RuntimeException` extend eder.                                                                                                                                                                              |
+| `SystemException`        | `exception` | `errorCode` + `message` alanlari. HTTP 5xx hatalari icin. `RuntimeException` extend eder.                                                                                                                                                                              |
+| `GlobalExceptionHandler` | `exception` | `@ControllerAdvice`. `MethodArgumentNotValidException`, `ConstraintViolationException`, genel `Exception` handler. **BusinessException ve SystemException icin handler YAZMAZ** (RULE-2). Tum response'lar `ApiResponse` formatinda.                                   |
+| `JwtService`             | `security`  | `generateToken(String sessionId, String email)`: HS256 access token uretir (JWT sadece `sid` + `sub` icerir, roller Redis'te). `validateToken(String token)`: boolean. `extractClaims(String token)`: Claims. `extractSessionId(String token)`: String. JJWT kullanir. |
+| `RedisKeys`              | `util`      | Final class. Tum key'ler `TICKET:` app prefix'i ile baslar. `USER_SESSION_PREFIX`, `RATE_LIMIT_PREFIX`, `IDEMPOTENCY_PREFIX` (`TICKET:idempotency:`). `userSessionKey`, `rateLimitKey`, `idempotencyKey(key, endpoint)` — sonuncusu skill 2 (ticketing-service) icin.  |
+| `JwtProperties`          | `security`  | `@ConfigurationProperties(prefix="security.jwt")`. Alanlar: `secret` (String), `algorithm` (String, default "HmacSHA256"), `accessTtlMinutes` (long, default 30), `refreshTtlDays` (long, default 7).                                                                  |
+| `HashUtil`               | `util`      | `static String sha256(String input)`: SHA-256 hex hash. `MessageDigest` kullanir.                                                                                                                                                                                      |
+| `GatewayHeaders`         | `util`      | Final class, private constructor. Constant'lar: `USER_ID = "X-User-Id"`, `SESSION_ID = "X-Session-Id"`, `FORWARDED_FOR = "X-Forwarded-For"`, `IDEMPOTENCY_KEY = "Idempotency-Key"`. Downstream'e **yalnizca** userId + sessionId gider; email/roller gitmez.           |
+| `DateUtil`               | `util`      | `static String toIso8601(LocalDateTime dt)`, `static LocalDateTime fromIso8601(String s)`, `static LocalDateTime nowUtc()`. `DateTimeFormatter.ISO_DATE_TIME` kullanir.                                                                                                |
+
+
+
 
 ### 1.3 Auto-configuration
 
@@ -83,6 +97,8 @@ Build basarili olmali, local Maven repo'ya yuklenecek.
 
 ---
 
+
+
 ## Faz 2: ticketing-auth
 
 User authentication servisi. Port 8082.
@@ -92,9 +108,12 @@ User authentication servisi. Port 8082.
 - Parent: `spring-boot-starter-parent` 4.0.x
 - Dependencies: `spring-boot-starter-web`, `spring-boot-starter-data-jpa`, `spring-boot-starter-validation`, `spring-boot-starter-security`, `spring-boot-starter-data-redis`, `h2` (runtime), `spring-boot-h2console` (Spring Boot 4'te H2 console auto-config ayri modulde), `ticketing-common-library` (1.0.0-SNAPSHOT), `spring-boot-starter-actuator`, `springdoc-openapi-starter-webmvc-ui`, `spring-boot-starter-test` + `spring-security-test` (test)
 
+
+
 ### 2.2 Domain Entities
 
 **User:**
+
 ```
 @Entity @Table(name = "users")
 - id: Long (@Id @GeneratedValue)
@@ -108,6 +127,7 @@ User authentication servisi. Port 8082.
 **Role (enum):** `ADMIN`, `ORGANIZER`, `CUSTOMER`
 
 **RefreshToken:**
+
 ```
 @Entity
 - id: Long (@Id @GeneratedValue)
@@ -117,10 +137,14 @@ User authentication servisi. Port 8082.
 - expiresAt: LocalDateTime
 ```
 
+
+
 ### 2.3 Repository
 
 - `UserRepository`: `Optional<User> findByEmail(String email)`, `boolean existsByEmail(String email)`
 - `RefreshTokenRepository`: `Optional<RefreshToken> findByToken(String token)`, `List<RefreshToken> findAllByUserId(Long userId)`, `void deleteByUserId(Long userId)`, `void deleteByExpiresAtBefore(LocalDateTime now)`
+
+
 
 ### 2.4 DTO (Java Records)
 
@@ -129,6 +153,8 @@ User authentication servisi. Port 8082.
 - `AuthRefreshRequest`: `@NotBlank refreshToken`
 - `AuthLogoutRequest`: `@NotBlank refreshToken`
 - `AuthResponse`: `accessToken`, `refreshToken`, `tokenType` ("Bearer"), `expiresInMinutes`
+
+
 
 ### 2.5 UserSessionService
 
@@ -209,11 +235,15 @@ SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
 `@Component` implementing `CommandLineRunner`. Startup'ta 3 user yoksa olustur:
 
-| Email | Role | Password |
-|---|---|---|
-| admin@ticketing.com | ADMIN | ChangeMe123! |
-| organizer@ticketing.com | ORGANIZER | ChangeMe123! |
-| customer@ticketing.com | CUSTOMER | ChangeMe123! |
+
+| Email                                                     | Role      | Password     |
+| --------------------------------------------------------- | --------- | ------------ |
+| [admin@ticketing.com](mailto:admin@ticketing.com)         | ADMIN     | ChangeMe123! |
+| [organizer@ticketing.com](mailto:organizer@ticketing.com) | ORGANIZER | ChangeMe123! |
+| [customer@ticketing.com](mailto:customer@ticketing.com)   | CUSTOMER  | ChangeMe123! |
+
+
+
 
 ### 2.9 application.yml
 
@@ -245,7 +275,7 @@ spring:
 
 security:
   jwt:
-    secret: ${JWT_SECRET:dGlja2V0aW5nLWNhc2Utc3R1ZHktc2VjcmV0LWtleS0yMDI2}
+    secret: ${JWT_SECRET}
     algorithm: HmacSHA256
     access-ttl-minutes: 30
     refresh-ttl-days: 7
@@ -254,6 +284,8 @@ management:
   endpoints.web.exposure.include: health,info
 ```
 
+
+
 ### 2.10 Dogrulama
 
 ```bash
@@ -261,6 +293,8 @@ cd ticketing-auth && mvn compile
 ```
 
 ---
+
+
 
 ## Faz 3: ticketing-apigateway
 
@@ -272,6 +306,8 @@ API Gateway. Port 8080. JWT validation, coarse-grained authorization, rate limit
 - Dependencies: `spring-cloud-starter-gateway-server-webmvc` (servlet-based), `spring-boot-starter-security`, `spring-boot-starter-oauth2-resource-server`, `spring-boot-starter-data-redis`, `ticketing-common-library` (1.0.0-SNAPSHOT), `spring-boot-starter-actuator`, `spring-boot-starter-test` (test)
 - Spring Cloud BOM: `spring-cloud-dependencies` (Spring Boot 4 uyumlu versiyon)
 - **NOT:** Gateway servlet-based'dir (MVC), WebFlux dependency'si yoktur.
+
+
 
 ### 3.2 SecurityConfig
 
@@ -297,6 +333,8 @@ http.addFilterAfter(rateLimitFilter, UserHeaderForwardingFilter.class);
 - `JwtDecoder` bean: `NimbusJwtDecoder.withSecretKey()` + `MacAlgorithm.HS256` ile symmetric key dogrulama. `SecretKeySpec` algoritmasi `JwtProperties.getAlgorithm()`'den okunur.
 - Authorization kurallari Spring Security `authorizeHttpRequests` ile tanimlanir (manuel AuthRule match yerine). Matcher'lar client-facing path'leri (`/api/ticket/...`) kullanir cunku security, `RewritePath`'ten **once** calisir.
 
+
+
 ### 3.3 JwtUserSessionConverter
 
 `Converter<Jwt, AbstractAuthenticationToken>` implement eder. `StringRedisTemplate` inject eder.
@@ -306,6 +344,8 @@ http.addFilterAfter(rateLimitFilter, UserHeaderForwardingFilter.class);
 3. Redis'ten `userId`, `email`, `roles` alinir.
 4. `roles` -> `SimpleGrantedAuthority` listesine donusturulur.
 5. `JwtAuthenticationToken` olusturulur, `details` map'ine `userId` ve `sessionId` eklenir (header forwarding filtresi bunlari okur).
+
+
 
 ### 3.4 UserHeaderForwardingFilter
 
@@ -317,21 +357,26 @@ http.addFilterAfter(rateLimitFilter, UserHeaderForwardingFilter.class);
 4. `Authorization` header'i **tum isteklerde** (public dahil) strip edilir -- downstream JWT gormez.
 5. Rate limit filtresi icin `request.setAttribute("userId", userId)` set edilir.
 
+
+
 ### 3.5 RateLimitFilter + RateLimitProperties
 
 Redis-backed fixed-window rate limiting. `OncePerRequestFilter`, `UserHeaderForwardingFilter`'dan **sonra** zincirlenir (userId attribute'una ihtiyac duyar).
 
 `RateLimitProperties` (`@ConfigurationProperties(prefix="security.rate-limit")`):
 
-| Alan | Default | Aciklama |
-|---|---|---|
-| `enabled` | true | Rate limit acik/kapali |
-| `windowSeconds` | 60 | Fixed window suresi |
-| `loginMaxRequests` | 5 | `POST /api/ticket/auth/login` icin IP bazli limit (brute-force korumasi) |
-| `authenticatedMaxRequests` | 100 | Authenticated istekler icin `user:{userId}` bazli limit |
-| `anonymousMaxRequests` | 50 | Diger anonim istekler icin IP bazli limit |
+
+| Alan                       | Default | Aciklama                                                                 |
+| -------------------------- | ------- | ------------------------------------------------------------------------ |
+| `enabled`                  | true    | Rate limit acik/kapali                                                   |
+| `windowSeconds`            | 60      | Fixed window suresi                                                      |
+| `loginMaxRequests`         | 5       | `POST /api/ticket/auth/login` icin IP bazli limit (brute-force korumasi) |
+| `authenticatedMaxRequests` | 100     | Authenticated istekler icin `user:{userId}` bazli limit                  |
+| `anonymousMaxRequests`     | 50      | Diger anonim istekler icin IP bazli limit                                |
+
 
 Bucket secimi:
+
 1. Path `POST /api/ticket/auth/login` -> identifier `login:ip:{ip}`, limit = `loginMaxRequests`
 2. `request.getAttribute("userId")` dolu -> identifier `user:{userId}`, limit = `authenticatedMaxRequests`
 3. Diger -> identifier `anon:ip:{ip}`, limit = `anonymousMaxRequests`
@@ -343,17 +388,21 @@ Limit asilirsa `429 Too Many Requests` + JSON error body. Response'lara `X-RateL
 
 `SecurityConfig.authorizeHttpRequests` icinde tanimlanir (client-facing `/api/ticket` prefix'li path'ler):
 
-| Route Pattern | Method | Izin Verilen Roller |
-|---|---|---|
-| `/api/ticket/auth/**` | ANY | PERMIT_ALL (JWT kontrolu yok) |
-| `/api/ticket/events/public/**` | GET | PERMIT_ALL (JWT kontrolu yok) |
-| `/api/ticket/events/**` | POST | ORGANIZER, ADMIN |
-| `/api/ticket/events/**` | PUT | ORGANIZER, ADMIN |
-| `/api/ticket/events` | GET | Authenticated (any role) |
-| `/api/ticket/events/*/reservations` | POST | CUSTOMER |
-| `/api/ticket/reservations/*/confirm` | POST | CUSTOMER |
-| `/api/ticket/reservations/*/cancel` | POST | CUSTOMER |
-| `/actuator/**` | ANY | PERMIT_ALL |
+
+| Route Pattern                        | Method | Izin Verilen Roller           |
+| ------------------------------------ | ------ | ----------------------------- |
+| `/api/ticket/auth/**`                | ANY    | PERMIT_ALL (JWT kontrolu yok) |
+| `/api/ticket/events/public/**`       | GET    | PERMIT_ALL (JWT kontrolu yok) |
+| `/api/ticket/events/**`              | POST   | ORGANIZER, ADMIN              |
+| `/api/ticket/events/**`              | PUT    | ORGANIZER, ADMIN              |
+| `/api/ticket/events`                 | GET    | Authenticated (any role)      |
+| `/api/ticket/events/*/reservations`  | POST   | CUSTOMER                      |
+| `/api/ticket/reservations/*/confirm` | POST   | CUSTOMER                      |
+| `/api/ticket/reservations/*/cancel`  | POST   | CUSTOMER                      |
+| `/actuator/**`                       | ANY    | PERMIT_ALL                    |
+
+
+
 
 ### 3.7 Route Tanimlari (application.yml)
 
@@ -387,7 +436,11 @@ spring:
                 - RewritePath=/api/ticket(?<segment>/?.*), ${segment}
 ```
 
+
+
 ### 3.8 application.yml (diger ayarlar)
+
+github göndermeden önce tüm iç Ip ve pasword'leri maskele,localde böyle kalsın
 
 ```yaml
 server:
@@ -405,7 +458,7 @@ spring:
 
 security:
   jwt:
-    secret: ${JWT_SECRET:dGlja2V0aW5nLWNhc2Utc3R1ZHktc2VjcmV0LWtleS0yMDI2}
+    secret: ${JWT_SECRET}
     algorithm: HmacSHA256
   rate-limit:
     enabled: true
@@ -417,6 +470,8 @@ security:
 management:
   endpoints.web.exposure.include: health,info
 ```
+
+
 
 ### 3.9 Dosya Yapisi
 
@@ -437,6 +492,8 @@ ticketing-apigateway/
 │   └── application.yml
 ```
 
+
+
 ### 3.10 Dogrulama
 
 ```bash
@@ -446,6 +503,8 @@ cd ticketing-apigateway && mvn compile
 Tum uc proje derlenebilmeli. Redis calisirken gateway + auth baslatilip `POST /api/ticket/auth/login` (gateway uzerinden) ile JWT alinabilmeli.
 
 ---
+
+
 
 ## Kritik Kurallar
 
@@ -457,3 +516,4 @@ Tum uc proje derlenebilmeli. Redis calisirken gateway + auth baslatilip `POST /a
 - Client-facing tum path'ler `/api/ticket` prefix'i tasir; gateway `RewritePath` ile stripler, downstream controller'lar prefix'siz map edilir.
 - Downstream'e yalnizca `X-User-Id` + `X-Session-Id` gider; `Authorization` header'i her istekte striplenir.
 - Tum Redis key'leri `TICKET:` prefix'i ile baslar (`RedisKeys` sinifi uzerinden olusturulur).
+

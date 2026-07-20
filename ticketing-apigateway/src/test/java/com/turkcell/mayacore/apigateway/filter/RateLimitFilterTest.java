@@ -71,14 +71,14 @@ class RateLimitFilterTest {
     void loginPath_shouldUseLoginBucket_andSetHeaders() throws Exception {
         when(request.getRequestURI()).thenReturn("/api/ticket/auth/login");
         when(request.getMethod()).thenReturn("POST");
-        when(request.getHeader("X-Forwarded-For")).thenReturn("10.0.0.8, 10.0.0.1");
+        when(request.getHeader("X-Forwarded-For")).thenReturn("203.0.113.8, 203.0.113.1");
         when(valueOperations.increment(anyString())).thenReturn(1L);
 
         filter.doFilterInternal(request, response, filterChain);
 
         ArgumentCaptor<String> keyCaptor = ArgumentCaptor.forClass(String.class);
         verify(valueOperations).increment(keyCaptor.capture());
-        assertThat(keyCaptor.getValue()).contains("login:ip:10.0.0.8");
+        assertThat(keyCaptor.getValue()).contains("login:ip:203.0.113.8");
         verify(redisTemplate).expire(anyString(), eq(Duration.ofSeconds(60)));
         verify(response).setHeader("X-RateLimit-Limit", "5");
         verify(response).setHeader("X-RateLimit-Remaining", "4");
@@ -109,14 +109,14 @@ class RateLimitFilterTest {
         when(request.getMethod()).thenReturn("GET");
         when(request.getAttribute("userId")).thenReturn(null);
         when(request.getHeader("X-Forwarded-For")).thenReturn(null);
-        when(request.getRemoteAddr()).thenReturn("192.168.1.10");
+        when(request.getRemoteAddr()).thenReturn("203.0.113.10");
         when(valueOperations.increment(anyString())).thenReturn(1L);
 
         filter.doFilterInternal(request, response, filterChain);
 
         ArgumentCaptor<String> keyCaptor = ArgumentCaptor.forClass(String.class);
         verify(valueOperations).increment(keyCaptor.capture());
-        assertThat(keyCaptor.getValue()).contains("anon:ip:192.168.1.10");
+        assertThat(keyCaptor.getValue()).contains("anon:ip:203.0.113.10");
         verify(response).setHeader("X-RateLimit-Limit", "50");
         verify(filterChain).doFilter(request, response);
     }
