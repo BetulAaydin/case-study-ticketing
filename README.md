@@ -8,15 +8,13 @@ Java 21 ve Spring Boot 4 ile geliştirilmiş, JWT tabanlı kimlik doğrulama ve 
 
 Aşağıdaki varsayımlar mimari ve güvenlik modelinin temelini oluşturur:
 
-1. **Tek giriş noktası (Ingress)**  
-   Kubernetes veya OpenShift ortamında **yalnızca `ticketing-apigateway` Ingress/Route ile dışarı açılır**.  
+1. **Tek giriş noktası (Ingress)**
+  Kubernetes veya OpenShift ortamında **yalnızca** `ticketing-apigateway` **Ingress/Route ile dışarı açılır**.  
    Downstream mikroservisler (`ticketing-auth`, `ticketing-service`) cluster-internal kalır; internetten veya cluster dışından doğrudan çağrılamaz.
-
-2. **Güvenilir iç ağ**  
-   Gateway → Auth / Ticketing trafiği güvenilir network (cluster mesh / private network) üzerinden akar. Downstream servisler kimliği Gateway’in ilettiği header’lardan (`X-User-Id`, `X-User-Email`, `X-User-Roles`) okur; JWT’yi yeniden doğrulamaz.
-
-3. **Tüm istemci istekleri Gateway üzerinden**  
-   Lokal geliştirmede bile API çağrıları `http://localhost:8080` üzerinden yapılmalıdır. Auth ve Ticketing portlarına (8082 / 8081) doğrudan erişim yalnızca debug / Swagger amaçlıdır.
+2. **Güvenilir iç ağ**
+  Gateway → Auth / Ticketing trafiği güvenilir network (cluster mesh / private network) üzerinden akar. Downstream servisler kimliği Gateway’in ilettiği header’lardan (`X-User-Id`, `X-User-Email`, `X-User-Roles`) okur; JWT’yi yeniden doğrulamaz.
+3. **Tüm istemci istekleri Gateway üzerinden**
+  Lokal geliştirmede bile API çağrıları `http://localhost:8080` üzerinden yapılmalıdır. Auth ve Ticketing portlarına (8082 / 8081) doğrudan erişim yalnızca debug / Swagger amaçlıdır.
 
 ```mermaid
 flowchart LR
@@ -35,7 +33,11 @@ flowchart LR
     TS -.->|dışarıdan erişilemez| X2[✗]
 ```
 
+
+
 ---
+
+
 
 ## 1. Ana Mimari
 
@@ -57,44 +59,62 @@ graph LR
     CL -.-> TS
 ```
 
-| Proje | Port | Sorumluluk |
-|---|---|---|
-| **ticketing-common-library** | — | Paylaşılan JAR: `ApiResponse`, exception’lar, `JwtService`, util’ler |
-| **ticketing-apigateway** | 8080 | JWT doğrulama, Redis session okuma, **coarse-grained** yetkilendirme, rate limiting, routing, header enjeksiyonu |
-| **ticketing-auth** | 8082 | Register, login, logout, refresh; JWT üretimi; Redis session yazma |
-| **ticketing-service** | 8081 | Event CRUD, rezervasyon, idempotency, audit; fine-grained sahiplik kontrolleri |
+
+
+
+| Proje                        | Port | Sorumluluk                                                                                                       |
+| ---------------------------- | ---- | ---------------------------------------------------------------------------------------------------------------- |
+| **ticketing-common-library** | —    | Paylaşılan JAR: `ApiResponse`, exception’lar, `JwtService`, util’ler                                             |
+| **ticketing-apigateway**     | 8080 | JWT doğrulama, Redis session okuma, **coarse-grained** yetkilendirme, rate limiting, routing, header enjeksiyonu |
+| **ticketing-auth**           | 8082 | Register, login, logout, refresh; JWT üretimi; Redis session yazma                                               |
+| **ticketing-service**        | 8081 | Event CRUD, rezervasyon, idempotency, audit; fine-grained sahiplik kontrolleri                                   |
+
+
+
 
 ### Bileşen sınırları
 
-| Katman | Ne yapar | Ne yapmaz |
-|---|---|---|
-| **Gateway** | Token doğrular, rol bazlı route kontrolü, rate limit, kullanıcı bilgisini header’a yazar | İş kuralı / sahiplik kontrolü yapmaz |
-| **Auth** | Kullanıcı + refresh token + Redis session yönetir | Event / rezervasyon bilmez |
-| **Ticketing** | Domain mantığı, optimistic lock, idempotency | JWT üretmez / doğrulamaz |
+
+| Katman        | Ne yapar                                                                                 | Ne yapmaz                            |
+| ------------- | ---------------------------------------------------------------------------------------- | ------------------------------------ |
+| **Gateway**   | Token doğrular, rol bazlı route kontrolü, rate limit, kullanıcı bilgisini header’a yazar | İş kuralı / sahiplik kontrolü yapmaz |
+| **Auth**      | Kullanıcı + refresh token + Redis session yönetir                                        | Event / rezervasyon bilmez           |
+| **Ticketing** | Domain mantığı, optimistic lock, idempotency                                             | JWT üretmez / doğrulamaz             |
+
 
 ---
 
+
+
 ## 2. Authentication / Authorization (Coarse-grained) ve JWT Akışı
+
+
 
 ### Roller
 
-| Rol | Erişim özeti |
-|---|---|
-| **ADMIN** | Tüm kaynaklara tam erişim |
+
+| Rol           | Erişim özeti                              |
+| ------------- | ----------------------------------------- |
+| **ADMIN**     | Tüm kaynaklara tam erişim                 |
 | **ORGANIZER** | Sahip olduğu event’ler üzerinde tam yetki |
-| **CUSTOMER** | Rezervasyon oluşturma / onay / iptal |
+| **CUSTOMER**  | Rezervasyon oluşturma / onay / iptal      |
+
+
+
 
 ### Coarse-grained kurallar (Gateway)
 
-| Route | Method | İzin |
-|---|---|---|
-| `/api/auth/**` | ANY | Public (JWT yok) |
-| `/api/events/public/**` | GET | Public (JWT yok) |
-| `/api/events/**` | POST, PUT | ORGANIZER, ADMIN |
-| `/api/events` | GET | Authenticated (herhangi bir rol) |
-| `/api/events/*/reservations` | POST | CUSTOMER |
-| `/api/reservations/*/confirm` | POST | CUSTOMER |
-| `/api/reservations/*/cancel` | POST | CUSTOMER |
+
+| Route                         | Method    | İzin                             |
+| ----------------------------- | --------- | -------------------------------- |
+| `/api/auth/**`                | ANY       | Public (JWT yok)                 |
+| `/api/events/public/**`       | GET       | Public (JWT yok)                 |
+| `/api/events/**`              | POST, PUT | ORGANIZER, ADMIN                 |
+| `/api/events`                 | GET       | Authenticated (herhangi bir rol) |
+| `/api/events/*/reservations`  | POST      | CUSTOMER                         |
+| `/api/reservations/*/confirm` | POST      | CUSTOMER                         |
+| `/api/reservations/*/cancel`  | POST      | CUSTOMER                         |
+
 
 Fine-grained kurallar (ör. “bu event benim mi?”) **ticketing-service** içinde uygulanır.
 
@@ -130,6 +150,10 @@ sequenceDiagram
     TS-->>C: ApiResponse
 ```
 
+
+
+
+
 ### Örnek JWT payload
 
 ```json
@@ -149,18 +173,24 @@ email:  "organizer@ticketing.com"
 roles:  "ORGANIZER"
 ```
 
-| Konu | Nerede | Nasıl |
-|---|---|---|
-| Token üretimi | Auth | `JwtService.generateToken(sessionId, email)` |
-| Session saklama | Auth → Redis | `{userId, email, roles}`, TTL ≈ access token |
-| Token doğrulama | Gateway | İmza + Redis `sid` lookup |
-| Anında iptal | Auth (logout/refresh) | Redis key silinir → JWT geçersizleşir |
-| Coarse AuthZ | Gateway | Route + method + roller |
-| Fine AuthZ | Ticketing | Ownership / kapasite / durum |
+
+| Konu            | Nerede                | Nasıl                                        |
+| --------------- | --------------------- | -------------------------------------------- |
+| Token üretimi   | Auth                  | `JwtService.generateToken(sessionId, email)` |
+| Session saklama | Auth → Redis          | `{userId, email, roles}`, TTL ≈ access token |
+| Token doğrulama | Gateway               | İmza + Redis `sid` lookup                    |
+| Anında iptal    | Auth (logout/refresh) | Redis key silinir → JWT geçersizleşir        |
+| Coarse AuthZ    | Gateway               | Route + method + roller                      |
+| Fine AuthZ      | Ticketing             | Ownership / kapasite / durum                 |
+
 
 ---
 
+
+
 ## 3. Gelecekte Yapılacaklar
+
+
 
 ### 3.1 Yapılandırmanın Spring Cloud Config’e taşınması
 
@@ -168,14 +198,18 @@ roles:  "ORGANIZER"
 - Amaç: deploy başına config değişikliği, merkezi secret yönetimi, ortam (dev/test/prod) ayrımı.
 - MayaCore Config Server / `cloud_config` modeli ile hizalanması hedeflenir.
 
+
+
 ### 3.2 Ticketing servisinin iki mikroservise bölünmesi
 
 Mevcut `ticketing-service` (event + reservation) ayrılacak:
 
-| Hedef servis | Sorumluluk |
-|---|---|
-| **event-service** | Event CRUD, publish, public discovery |
+
+| Hedef servis            | Sorumluluk                                                   |
+| ----------------------- | ------------------------------------------------------------ |
+| **event-service**       | Event CRUD, publish, public discovery                        |
 | **reservation-service** | Rezervasyon create / confirm / cancel, idempotency, kapasite |
+
 
 **Service-to-service çağrı:**  
 Reservation servisi, event kapasitesi / yayın durumu gibi bilgileri event-service’ten **internal API call** ile alacak.
@@ -197,26 +231,36 @@ flowchart LR
     RSV -->|service-to-service<br/>event bilgisi| EV
 ```
 
+
+
+
+
 ### 3.3 Keycloak entegrasyonu
 
 Keycloak hem **kullanıcı** hem **servis çağrıları** için değerlendirilecek:
 
-| Kullanım | Amaç |
-|---|---|
-| **User authentication** | Login / SSO; mevcut custom JWT+session modelinin yerine veya yanında |
-| **Service accounts** | Reservation → Event gibi S2S çağrılarda client credentials |
-| **Realm / client rolleri** | ADMIN, ORGANIZER, CUSTOMER ve servis rollerinin merkezi yönetimi |
-| **Token introspection / JWKS** | Gateway’de imza doğrulama standardizasyonu |
+
+| Kullanım                       | Amaç                                                                 |
+| ------------------------------ | -------------------------------------------------------------------- |
+| **User authentication**        | Login / SSO; mevcut custom JWT+session modelinin yerine veya yanında |
+| **Service accounts**           | Reservation → Event gibi S2S çağrılarda client credentials           |
+| **Realm / client rolleri**     | ADMIN, ORGANIZER, CUSTOMER ve servis rollerinin merkezi yönetimi     |
+| **Token introspection / JWKS** | Gateway’de imza doğrulama standardizasyonu                           |
+
 
 Bu adım, custom Auth servisinin sadeleştirilmesi veya Keycloak’a delege edilmesi kararını da beraberinde getirecektir.
 
 ---
+
+
 
 ## Önkoşullar
 
 - Java 21+
 - Maven 3.9+
 - Redis 7+ (`brew install redis`)
+
+
 
 ## Hızlı Başlangıç
 
@@ -242,22 +286,29 @@ curl -s -X POST http://localhost:8080/api/auth/login \
   -d '{"email":"organizer@ticketing.com","password":"ChangeMe123!"}'
 ```
 
+
+
 ## Seed Kullanıcılar
 
-| E-posta | Rol | Şifre |
-|---|---|---|
-| admin@ticketing.com | ADMIN | ChangeMe123! |
-| organizer@ticketing.com | ORGANIZER | ChangeMe123! |
-| customer@ticketing.com | CUSTOMER | ChangeMe123! |
+
+| E-posta                                                   | Rol       | Şifre        |
+| --------------------------------------------------------- | --------- | ------------ |
+| [admin@ticketing.com](mailto:admin@ticketing.com)         | ADMIN     | ChangeMe123! |
+| [organizer@ticketing.com](mailto:organizer@ticketing.com) | ORGANIZER | ChangeMe123! |
+| [customer@ticketing.com](mailto:customer@ticketing.com)   | CUSTOMER  | ChangeMe123! |
+
+
+
 
 ## OpenAPI
 
 ```
+ http://localhost:8080/swagger-ui.html->downstream api'leri listeleyecek sekilde dökümantasyon olustur
 Auth Swagger:       http://localhost:8082/swagger-ui.html
 Ticketing Swagger:  http://localhost:8081/swagger-ui.html
 ```
 
-İstemci trafiği için giriş noktası: **http://localhost:8080** (Gateway).
+İstemci trafiği için giriş noktası: **[http://localhost:8080](http://localhost:8080)** (Gateway).
 
 ## Alt Projeler
 
