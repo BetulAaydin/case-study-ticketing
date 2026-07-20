@@ -20,24 +20,24 @@ spring:
             - id: auth-service
               uri: http://localhost:8082
               predicates:
-                - Path=/api/ticket/auth/**
+                - Path=/api/auth/**
               filters:
-                - RewritePath=/api/ticket(?<segment>/?.*), ${segment}
+                - RewritePath=/api(?<segment>/?.*), ${segment}
 
             - id: ticketing-public
               uri: http://localhost:8081
               predicates:
-                - Path=/api/ticket/events/public/**
+                - Path=/api/events/public/**
                 - Method=GET
               filters:
-                - RewritePath=/api/ticket(?<segment>/?.*), ${segment}
+                - RewritePath=/api(?<segment>/?.*), ${segment}
 
             - id: ticketing-service
               uri: http://localhost:8081
               predicates:
-                - Path=/api/ticket/events/**,/api/ticket/reservations/**
+                - Path=/api/events/**,/api/reservations/**
               filters:
-                - RewritePath=/api/ticket(?<segment>/?.*), ${segment}
+                - RewritePath=/api(?<segment>/?.*), ${segment}
 
 security:
   jwt:
@@ -49,6 +49,10 @@ security:
     login-max-requests: 5
     authenticated-max-requests: 100
     anonymous-max-requests: 50
+
+ticketing:
+  gateway:
+    shared-secret: ${GATEWAY_SHARED_SECRET:ticketing-local-gateway-secret}
 
 management:
   endpoints:
