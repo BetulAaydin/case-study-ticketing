@@ -6,6 +6,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletRequestWrapper;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -19,9 +20,19 @@ import java.util.*;
 @Component
 public class UserHeaderForwardingFilter extends OncePerRequestFilter {
 
+    private final String gatewaySharedSecret;
+
+    public UserHeaderForwardingFilter(
+            @Value("${ticketing.gateway.shared-secret:ticketing-local-gateway-secret}") String gatewaySharedSecret) {
+        this.gatewaySharedSecret = gatewaySharedSecret;
+    }
+
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
+
+        Map<String, String> extraHeaders = new LinkedHashMap<>();
+        extraHeaders.put(GatewayHeaders.GATEWAY_SECRET, gatewaySharedSecret);
 
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
 
@@ -30,22 +41,13 @@ public class UserHeaderForwardingFilter extends OncePerRequestFilter {
 
             String userId = (String) details.get("userId");
             String sessionId = (String) details.get("sessionId");
-
-            Map<String, String> extraHeaders = Map.of(
-                    GatewayHeaders.USER_ID, userId,
-                    GatewayHeaders.SESSION_ID, sessionId
-            );
-
+            extraHeaders.put(GatewayHeaders.USER_ID, userId);
+            extraHeaders.put(GatewayHeaders.SESSION_ID, sessionId);
             request.setAttribute("userId", userId);
-
-            filterChain.doFilter(
-                    new HeaderMutatingRequestWrapper(request, extraHeaders, Set.of(HttpHeaders.AUTHORIZATION)),
-                    response);
-            return;
         }
 
         filterChain.doFilter(
-                new HeaderMutatingRequestWrapper(request, Map.of(), Set.of(HttpHeaders.AUTHORIZATION)),
+                new HeaderMutatingRequestWrapper(request, extraHeaders, Set.of(HttpHeaders.AUTHORIZATION)),
                 response);
     }
 

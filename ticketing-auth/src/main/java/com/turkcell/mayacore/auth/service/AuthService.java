@@ -55,7 +55,8 @@ public class AuthService {
         User user = new User();
         user.setEmail(request.email());
         user.setPasswordHash(passwordEncoder.encode(request.password()));
-        user.setRoles(Set.of(request.role() != null ? request.role() : Role.CUSTOMER));
+        // Public register is always CUSTOMER; ADMIN/ORGANIZER only via seed / ops.
+        user.setRoles(Set.of(Role.CUSTOMER));
         user = userRepository.save(user);
 
         return buildAuthResponse(user);

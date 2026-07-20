@@ -39,7 +39,8 @@ class UserHeaderForwardingFilterTest {
     @Mock
     private FilterChain filterChain;
 
-    private final UserHeaderForwardingFilter filter = new UserHeaderForwardingFilter();
+    private final UserHeaderForwardingFilter filter =
+            new UserHeaderForwardingFilter("ticketing-local-gateway-secret");
 
     @AfterEach
     void clearSecurity() {
@@ -86,12 +87,13 @@ class UserHeaderForwardingFilterTest {
         HttpServletRequest wrapped = captor.getValue();
         assertThat(wrapped.getHeader(GatewayHeaders.USER_ID)).isEqualTo("99");
         assertThat(wrapped.getHeader(GatewayHeaders.SESSION_ID)).isEqualTo("sid-1");
+        assertThat(wrapped.getHeader(GatewayHeaders.GATEWAY_SECRET)).isEqualTo("ticketing-local-gateway-secret");
         assertThat(wrapped.getHeader(HttpHeaders.AUTHORIZATION)).isNull();
         assertThat(wrapped.getHeader("Accept")).isEqualTo("application/json");
         assertThat(Collections.list(wrapped.getHeaders(GatewayHeaders.USER_ID))).containsExactly("99");
         assertThat(Collections.list(wrapped.getHeaders(HttpHeaders.AUTHORIZATION))).isEmpty();
         assertThat(Collections.list(wrapped.getHeaderNames()))
-                .contains(GatewayHeaders.USER_ID, GatewayHeaders.SESSION_ID, "Accept")
+                .contains(GatewayHeaders.USER_ID, GatewayHeaders.SESSION_ID, GatewayHeaders.GATEWAY_SECRET, "Accept")
                 .doesNotContain(HttpHeaders.AUTHORIZATION);
     }
 
@@ -112,6 +114,8 @@ class UserHeaderForwardingFilterTest {
         verify(filterChain).doFilter(captor.capture(), eq(response));
         assertThat(captor.getValue().getHeader(HttpHeaders.AUTHORIZATION)).isNull();
         assertThat(captor.getValue().getHeader(GatewayHeaders.USER_ID)).isNull();
+        assertThat(captor.getValue().getHeader(GatewayHeaders.GATEWAY_SECRET))
+                .isEqualTo("ticketing-local-gateway-secret");
     }
 
     @Test

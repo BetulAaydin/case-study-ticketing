@@ -143,6 +143,43 @@ class EventServiceTest {
         assertThat(result.getFirst().published()).isTrue();
     }
 
+    @Test
+    void delete_shouldRemoveDraftEvent() {
+        Event event = ownedDraft(1L, 10L);
+        when(eventRepository.findById(1L)).thenReturn(Optional.of(event));
+
+        eventService.delete(10L, "sid-1", 1L, "ip", "ua");
+
+        verify(eventRepository).delete(event);
+        verify(auditService).log(eq(10L), eq("EVENT_DELETED"), eq("Event"), eq(1L), any(), any());
+    }
+
+    @Test
+    void delete_shouldThrow_whenPublished() {
+        Event event = ownedDraft(1L, 10L);
+        event.setPublished(true);
+        when(eventRepository.findById(1L)).thenReturn(Optional.of(event));
+
+        assertThatThrownBy(() -> eventService.delete(10L, "sid-1", 1L, "ip", "ua"))
+                .isInstanceOf(BusinessException.class)
+                .extracting(ex -> ((BusinessException) ex).getErrorCode())
+                .isEqualTo("EVENT_PUBLISHED");
+    }
+
+    @Test
+    void update_shouldThrow_whenCapacityBelowReserved() {
+        Event event = ownedDraft(1L, 10L);
+        event.setReservedSeats(20);
+        when(eventRepository.findById(1L)).thenReturn(Optional.of(event));
+
+        EventUpdateRequest request = new EventUpdateRequest(null, null, null, null, 5);
+
+        assertThatThrownBy(() -> eventService.update(10L, "sid-1", 1L, request, "ip", "ua"))
+                .isInstanceOf(BusinessException.class)
+                .extracting(ex -> ((BusinessException) ex).getErrorCode())
+                .isEqualTo("EVENT_CAPACITY_TOO_LOW");
+    }
+
     private Event ownedDraft(Long id, Long ownerId) {
         Event event = new Event();
         event.setId(id);

@@ -52,7 +52,7 @@ class AuthControllerTest {
         when(userSessionService.createSession(anyLong(), anyString(), anyList())).thenReturn("sid-new");
 
         AuthRegisterRequest request = new AuthRegisterRequest(
-                "fresh-" + System.nanoTime() + "@test.com", "ChangeMe123!", null);
+                "fresh-" + System.nanoTime() + "@test.com", "ChangeMe123!");
 
         mockMvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -65,7 +65,7 @@ class AuthControllerTest {
 
     @Test
     void register_shouldReturn400_withInvalidEmail() throws Exception {
-        AuthRegisterRequest request = new AuthRegisterRequest("not-an-email", "ChangeMe123!", null);
+        AuthRegisterRequest request = new AuthRegisterRequest("not-an-email", "ChangeMe123!");
 
         mockMvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -78,7 +78,7 @@ class AuthControllerTest {
     void register_shouldFail_withDuplicateEmail() throws Exception {
         when(userSessionService.createSession(anyLong(), anyString(), anyList())).thenReturn("sid-dup");
         String email = "dup-" + System.nanoTime() + "@test.com";
-        AuthRegisterRequest request = new AuthRegisterRequest(email, "ChangeMe123!", null);
+        AuthRegisterRequest request = new AuthRegisterRequest(email, "ChangeMe123!");
 
         mockMvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)

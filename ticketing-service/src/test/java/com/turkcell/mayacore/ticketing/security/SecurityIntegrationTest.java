@@ -17,6 +17,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 class SecurityIntegrationTest {
 
+    private static final String GATEWAY_SECRET = "ticketing-local-gateway-secret";
+
     @Autowired
     private MockMvc mockMvc;
 
@@ -33,8 +35,17 @@ class SecurityIntegrationTest {
     }
 
     @Test
+    void forgedIdentityHeaders_withoutGatewaySecret_shouldBeRejected() throws Exception {
+        mockMvc.perform(get("/events")
+                        .header(GatewayHeaders.USER_ID, "10")
+                        .header(GatewayHeaders.SESSION_ID, "sid-1"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void request_withValidHeaders_shouldReturn200() throws Exception {
         mockMvc.perform(get("/events")
+                        .header(GatewayHeaders.GATEWAY_SECRET, GATEWAY_SECRET)
                         .header(GatewayHeaders.USER_ID, "10")
                         .header(GatewayHeaders.SESSION_ID, "sid-1"))
                 .andExpect(status().isOk())

@@ -7,6 +7,7 @@ import com.turkcell.mayacore.ticketing.dto.EventResponse;
 import com.turkcell.mayacore.ticketing.dto.EventUpdateRequest;
 import com.turkcell.mayacore.ticketing.repository.EventRepository;
 import com.turkcell.mayacore.ticketing.security.SessionRoleResolver;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -51,7 +52,10 @@ public class EventService {
         assertCanManage(userId, sessionId, event);
 
         if (event.isPublished()) {
-            throw new BusinessException("EVENT_PUBLISHED", "Published event cannot be updated");
+            throw new BusinessException(
+                    "EVENT_PUBLISHED",
+                    "Published event cannot be updated",
+                    HttpStatus.CONFLICT);
         }
 
         if (request.title() != null) {
@@ -67,6 +71,12 @@ public class EventService {
             event.setEndsAt(request.endsAt());
         }
         if (request.capacity() != null) {
+            if (request.capacity() < event.getReservedSeats()) {
+                throw new BusinessException(
+                        "EVENT_CAPACITY_TOO_LOW",
+                        "Capacity cannot be less than reserved seats (" + event.getReservedSeats() + ")",
+                        HttpStatus.CONFLICT);
+            }
             event.setCapacity(request.capacity());
         }
 
@@ -81,13 +91,38 @@ public class EventService {
         assertCanManage(userId, sessionId, event);
 
         if (event.isPublished()) {
-            throw new BusinessException("EVENT_ALREADY_PUBLISHED", "Event is already published");
+            throw new BusinessException(
+                    "EVENT_ALREADY_PUBLISHED",
+                    "Event is already published",
+                    HttpStatus.CONFLICT);
         }
 
         event.setPublished(true);
         event = eventRepository.save(event);
         auditService.log(userId, "EVENT_PUBLISHED", "Event", event.getId(), ip, userAgent);
         return EventResponse.from(event);
+    }
+
+    public void delete(Long userId, String sessionId, Long eventId, String ip, String userAgent) {
+        Event event = findEvent(eventId);
+        assertCanManage(userId, sessionId, event);
+
+        if (event.isPublished()) {
+            throw new BusinessException(
+                    "EVENT_PUBLISHED",
+                    "Published event cannot be deleted",
+                    HttpStatus.CONFLICT);
+        }
+        if (event.getReservedSeats() > 0) {
+            throw new BusinessException(
+                    "EVENT_HAS_RESERVATIONS",
+                    "Event with reserved seats cannot be deleted",
+                    HttpStatus.CONFLICT);
+        }
+
+        Long id = event.getId();
+        eventRepository.delete(event);
+        auditService.log(userId, "EVENT_DELETED", "Event", id, ip, userAgent);
     }
 
     @Transactional(readOnly = true)
@@ -107,13 +142,19 @@ public class EventService {
 
     private Event findEvent(Long eventId) {
         return eventRepository.findById(eventId)
-                .orElseThrow(() -> new BusinessException("EVENT_NOT_FOUND", "Event not found: " + eventId));
+                .orElseThrow(() -> new BusinessException(
+                        "EVENT_NOT_FOUND",
+                        "Event not found: " + eventId,
+                        HttpStatus.NOT_FOUND));
     }
 
     private void assertCanManage(Long userId, String sessionId, Event event) {
         if (event.getOwnerId().equals(userId) || sessionRoleResolver.isAdmin(sessionId)) {
             return;
         }
-        throw new BusinessException("EVENT_FORBIDDEN", "Not allowed to manage this event");
+        throw new BusinessException(
+                "EVENT_FORBIDDEN",
+                "Not allowed to manage this event",
+                HttpStatus.FORBIDDEN);
     }
 }

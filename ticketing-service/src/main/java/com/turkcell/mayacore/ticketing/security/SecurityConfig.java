@@ -1,5 +1,6 @@
 package com.turkcell.mayacore.ticketing.security;
 
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -16,9 +17,28 @@ import org.springframework.security.web.servlet.util.matcher.PathPatternRequestM
 public class SecurityConfig {
 
     private final GatewayHeaderAuthFilter gatewayHeaderAuthFilter;
+    private final TrustedGatewayHeadersFilter trustedGatewayHeadersFilter;
 
-    public SecurityConfig(GatewayHeaderAuthFilter gatewayHeaderAuthFilter) {
+    public SecurityConfig(GatewayHeaderAuthFilter gatewayHeaderAuthFilter,
+                          TrustedGatewayHeadersFilter trustedGatewayHeadersFilter) {
         this.gatewayHeaderAuthFilter = gatewayHeaderAuthFilter;
+        this.trustedGatewayHeadersFilter = trustedGatewayHeadersFilter;
+    }
+
+    @Bean
+    public FilterRegistrationBean<TrustedGatewayHeadersFilter> disableTrustedGatewayServletRegistration(
+            TrustedGatewayHeadersFilter filter) {
+        FilterRegistrationBean<TrustedGatewayHeadersFilter> registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false);
+        return registration;
+    }
+
+    @Bean
+    public FilterRegistrationBean<GatewayHeaderAuthFilter> disableGatewayHeaderServletRegistration(
+            GatewayHeaderAuthFilter filter) {
+        FilterRegistrationBean<GatewayHeaderAuthFilter> registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false);
+        return registration;
     }
 
     @Bean
@@ -27,7 +47,7 @@ public class SecurityConfig {
         return http
                 .securityMatcher(PathPatternRequestMatcher.pathPattern("/h2-console/**"))
                 .csrf(csrf -> csrf.disable())
-                .headers(headers -> headers.frameOptions(frame -> frame.sameOrigin()))
+                .headers(headers -> headers.frameOptions(frame -> frame.disable()))
                 .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
                 .build();
     }
@@ -40,6 +60,7 @@ public class SecurityConfig {
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/actuator/**").permitAll()
+                        .requestMatchers("/h2-console/**").permitAll()
                         .requestMatchers(
                                 "/swagger-ui.html",
                                 "/swagger-ui/**",
@@ -49,6 +70,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/events/public/**").permitAll()
                         .anyRequest().authenticated()
                 )
+                .addFilterBefore(trustedGatewayHeadersFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(gatewayHeaderAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
     }

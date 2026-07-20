@@ -8,6 +8,7 @@ import com.turkcell.mayacore.ticketing.dto.ReservationResponse;
 import com.turkcell.mayacore.ticketing.repository.EventRepository;
 import com.turkcell.mayacore.ticketing.repository.ReservationRepository;
 import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -43,7 +44,8 @@ public class ReservationService {
         }
         throw new BusinessException(
                 "RESERVATION_CONFLICT",
-                "Could not reserve seats due to concurrent updates");
+                "Could not reserve seats due to concurrent updates",
+                HttpStatus.CONFLICT);
     }
 
     public ReservationResponse confirm(Long userId, Long reservationId, String ip, String userAgent) {
@@ -53,7 +55,8 @@ public class ReservationService {
             if (reservation.getStatus() != ReservationStatus.PENDING) {
                 throw new BusinessException(
                         "RESERVATION_INVALID_STATUS",
-                        "Only PENDING reservations can be confirmed");
+                        "Only PENDING reservations can be confirmed",
+                        HttpStatus.CONFLICT);
             }
 
             reservation.setStatus(ReservationStatus.CONFIRMED);
@@ -75,20 +78,24 @@ public class ReservationService {
         }
         throw new BusinessException(
                 "RESERVATION_CONFLICT",
-                "Could not cancel reservation due to concurrent updates");
+                "Could not cancel reservation due to concurrent updates",
+                HttpStatus.CONFLICT);
     }
 
     private ReservationResponse createOnce(Long userId, Long eventId, int seats,
                                            String ip, String userAgent) {
         Event event = eventRepository.findById(eventId)
-                .orElseThrow(() -> new BusinessException("EVENT_NOT_FOUND", "Event not found: " + eventId));
+                .orElseThrow(() -> new BusinessException(
+                        "EVENT_NOT_FOUND", "Event not found: " + eventId, HttpStatus.NOT_FOUND));
 
         if (!event.isPublished()) {
-            throw new BusinessException("EVENT_NOT_PUBLISHED", "Event is not published");
+            throw new BusinessException(
+                    "EVENT_NOT_PUBLISHED", "Event is not published", HttpStatus.CONFLICT);
         }
 
         if (event.getCapacity() - event.getReservedSeats() < seats) {
-            throw new BusinessException("NOT_ENOUGH_CAPACITY", "Not enough capacity");
+            throw new BusinessException(
+                    "NOT_ENOUGH_CAPACITY", "Not enough capacity", HttpStatus.CONFLICT);
         }
 
         event.setReservedSeats(event.getReservedSeats() + seats);
@@ -117,7 +124,8 @@ public class ReservationService {
         Event event = eventRepository.findById(reservation.getEventId())
                 .orElseThrow(() -> new BusinessException(
                         "EVENT_NOT_FOUND",
-                        "Event not found: " + reservation.getEventId()));
+                        "Event not found: " + reservation.getEventId(),
+                        HttpStatus.NOT_FOUND));
 
         event.setReservedSeats(Math.max(0, event.getReservedSeats() - reservation.getSeats()));
         eventRepository.saveAndFlush(event);
@@ -133,10 +141,14 @@ public class ReservationService {
         Reservation reservation = reservationRepository.findById(reservationId)
                 .orElseThrow(() -> new BusinessException(
                         "RESERVATION_NOT_FOUND",
-                        "Reservation not found: " + reservationId));
+                        "Reservation not found: " + reservationId,
+                        HttpStatus.NOT_FOUND));
 
         if (!reservation.getUserId().equals(userId)) {
-            throw new BusinessException("RESERVATION_FORBIDDEN", "Not allowed to manage this reservation");
+            throw new BusinessException(
+                    "RESERVATION_FORBIDDEN",
+                    "Not allowed to manage this reservation",
+                    HttpStatus.FORBIDDEN);
         }
         return reservation;
     }

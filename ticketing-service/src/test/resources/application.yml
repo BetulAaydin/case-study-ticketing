@@ -22,3 +22,7 @@ security:
     secret: dGVzdC1zZWNyZXQta2V5LWZvci11bml0LXRlc3RzMTI=
     access-ttl-minutes: 5
     refresh-ttl-days: 1
+
+ticketing:
+  gateway:
+    shared-secret: ticketing-local-gateway-secret

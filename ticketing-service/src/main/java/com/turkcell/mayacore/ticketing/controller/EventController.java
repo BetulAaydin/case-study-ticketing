@@ -57,6 +57,17 @@ public class EventController {
                 userId, sessionId, id, clientIp(httpRequest), httpRequest.getHeader("User-Agent")));
     }
 
+    @DeleteMapping("/{id}")
+    public ApiResponse<Void> delete(
+            @RequestHeader(GatewayHeaders.USER_ID) Long userId,
+            @RequestHeader(value = GatewayHeaders.SESSION_ID, required = false) String sessionId,
+            @PathVariable Long id,
+            HttpServletRequest httpRequest) {
+        eventService.delete(
+                userId, sessionId, id, clientIp(httpRequest), httpRequest.getHeader("User-Agent"));
+        return ApiResponse.success(null);
+    }
+
     @GetMapping
     public ApiResponse<List<EventResponse>> list(
             @RequestHeader(GatewayHeaders.USER_ID) Long userId,

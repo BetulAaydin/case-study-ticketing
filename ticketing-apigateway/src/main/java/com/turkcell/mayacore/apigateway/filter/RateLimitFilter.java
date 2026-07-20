@@ -18,7 +18,7 @@ import java.time.Duration;
 @Component
 public class RateLimitFilter extends OncePerRequestFilter {
 
-    private static final String LOGIN_PATH = "/api/ticket/auth/login";
+    private static final String LOGIN_PATH = "/api/auth/login";
 
     private final StringRedisTemplate redisTemplate;
     private final RateLimitProperties properties;

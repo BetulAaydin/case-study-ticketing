@@ -3,6 +3,7 @@ package com.turkcell.mayacore.ticketing.service;
 import com.turkcell.mayacore.commonlibrary.exception.BusinessException;
 import com.turkcell.mayacore.commonlibrary.util.RedisKeys;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -47,7 +48,8 @@ public class IdempotencyService {
             if (storedHash != null && !storedHash.equals(requestHash)) {
                 throw new BusinessException(
                         "IDEMPOTENCY_KEY_MISMATCH",
-                        "Key already used with different payload");
+                        "Key already used with different payload",
+                        HttpStatus.CONFLICT);
             }
             String body = (String) existing.get(FIELD_RESPONSE_BODY);
             int code = Integer.parseInt((String) existing.get(FIELD_RESPONSE_STATUS));
@@ -57,7 +59,8 @@ public class IdempotencyService {
         if (STATUS_PROCESSING.equals(status)) {
             throw new BusinessException(
                     "IDEMPOTENCY_IN_PROGRESS",
-                    "Concurrent request in progress");
+                    "Concurrent request in progress",
+                    HttpStatus.CONFLICT);
         }
 
         if (STATUS_FAILED.equals(status)) {

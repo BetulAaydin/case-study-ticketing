@@ -28,6 +28,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 class EventControllerTest {
 
+    private static final String GATEWAY_SECRET = "ticketing-local-gateway-secret";
+
     @Autowired
     private MockMvc mockMvc;
 
@@ -49,6 +51,7 @@ class EventControllerTest {
         EventCreateRequest request = new EventCreateRequest("Jazz Night", "Club", starts, ends, 50);
 
         mockMvc.perform(post("/events")
+                        .header(GatewayHeaders.GATEWAY_SECRET, GATEWAY_SECRET)
                         .header(GatewayHeaders.USER_ID, "10")
                         .header(GatewayHeaders.SESSION_ID, "sid-org")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -65,6 +68,7 @@ class EventControllerTest {
         EventUpdateRequest update = new EventUpdateRequest("Jazz Night Updated", null, null, null, null);
 
         mockMvc.perform(put("/events/" + eventId)
+                        .header(GatewayHeaders.GATEWAY_SECRET, GATEWAY_SECRET)
                         .header(GatewayHeaders.USER_ID, "10")
                         .header(GatewayHeaders.SESSION_ID, "sid-org")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -79,6 +83,7 @@ class EventControllerTest {
         Long eventId = createEventAsOwner(10L);
 
         mockMvc.perform(post("/events/" + eventId + "/publish")
+                        .header(GatewayHeaders.GATEWAY_SECRET, GATEWAY_SECRET)
                         .header(GatewayHeaders.USER_ID, "10")
                         .header(GatewayHeaders.SESSION_ID, "sid-org"))
                 .andExpect(status().isOk())
@@ -91,6 +96,7 @@ class EventControllerTest {
         createEventAsOwner(10L);
 
         mockMvc.perform(get("/events")
+                        .header(GatewayHeaders.GATEWAY_SECRET, GATEWAY_SECRET)
                         .header(GatewayHeaders.USER_ID, "10")
                         .header(GatewayHeaders.SESSION_ID, "sid-org")
                         .param("ownerId", "10"))
@@ -120,6 +126,7 @@ class EventControllerTest {
     private Long createEventAsOwner(long ownerId) throws Exception {
         EventCreateRequest request = new EventCreateRequest("Jazz Night", "Club", starts, ends, 50);
         MvcResult result = mockMvc.perform(post("/events")
+                        .header(GatewayHeaders.GATEWAY_SECRET, GATEWAY_SECRET)
                         .header(GatewayHeaders.USER_ID, String.valueOf(ownerId))
                         .header(GatewayHeaders.SESSION_ID, "sid-org")
                         .contentType(MediaType.APPLICATION_JSON)

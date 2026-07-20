@@ -70,7 +70,7 @@ class AuthServiceTest {
         when(refreshTokenRepository.save(any(RefreshToken.class))).thenAnswer(inv -> inv.getArgument(0));
 
         AuthResponse response = authService.register(
-                new AuthRegisterRequest("new@test.com", "ChangeMe123!", Role.CUSTOMER));
+                new AuthRegisterRequest("new@test.com", "ChangeMe123!"));
 
         assertThat(response.accessToken()).isEqualTo("access-token");
         assertThat(response.refreshToken()).isNotBlank();

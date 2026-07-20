@@ -69,7 +69,7 @@ class RateLimitFilterTest {
 
     @Test
     void loginPath_shouldUseLoginBucket_andSetHeaders() throws Exception {
-        when(request.getRequestURI()).thenReturn("/api/ticket/auth/login");
+        when(request.getRequestURI()).thenReturn("/api/auth/login");
         when(request.getMethod()).thenReturn("POST");
         when(request.getHeader("X-Forwarded-For")).thenReturn("203.0.113.8, 203.0.113.1");
         when(valueOperations.increment(anyString())).thenReturn(1L);
@@ -87,7 +87,7 @@ class RateLimitFilterTest {
 
     @Test
     void authenticatedRequest_shouldUseUserBucket() throws Exception {
-        when(request.getRequestURI()).thenReturn("/api/ticket/events");
+        when(request.getRequestURI()).thenReturn("/api/events");
         when(request.getMethod()).thenReturn("GET");
         when(request.getAttribute("userId")).thenReturn("42");
         when(request.getRemoteAddr()).thenReturn("127.0.0.1");
@@ -105,7 +105,7 @@ class RateLimitFilterTest {
 
     @Test
     void anonymousRequest_shouldUseAnonIpBucket() throws Exception {
-        when(request.getRequestURI()).thenReturn("/api/ticket/events/public");
+        when(request.getRequestURI()).thenReturn("/api/events/public");
         when(request.getMethod()).thenReturn("GET");
         when(request.getAttribute("userId")).thenReturn(null);
         when(request.getHeader("X-Forwarded-For")).thenReturn(null);
@@ -123,7 +123,7 @@ class RateLimitFilterTest {
 
     @Test
     void whenLimitExceeded_shouldReturn429_andNotContinue() throws Exception {
-        when(request.getRequestURI()).thenReturn("/api/ticket/auth/login");
+        when(request.getRequestURI()).thenReturn("/api/auth/login");
         when(request.getMethod()).thenReturn("POST");
         when(request.getRemoteAddr()).thenReturn("1.2.3.4");
         when(valueOperations.increment(anyString())).thenReturn(6L);
@@ -138,7 +138,7 @@ class RateLimitFilterTest {
 
     @Test
     void blankForwardedFor_shouldFallBackToRemoteAddr() throws Exception {
-        when(request.getRequestURI()).thenReturn("/api/ticket/events/public");
+        when(request.getRequestURI()).thenReturn("/api/events/public");
         when(request.getMethod()).thenReturn("GET");
         when(request.getAttribute("userId")).thenReturn(null);
         when(request.getHeader("X-Forwarded-For")).thenReturn("   ");
